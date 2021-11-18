@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+    # Servidor PHP
+    php-fpm:
+        build:
+            args:
+                user: ${SO_USER}
+                uid: 1000
+            context: ./docker/php-fpm
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        working_dir: /var/www/
+        volumes:
+            - ./:/var/www
+            - ./docker/php-fpm/php8.0.ini:/usr/local/etc/php/php.ini
+        networks:
+            - laravelnet
+
+    # nginx
+    nginx:
+        image: nginx:alpine
+        restart: unless-stopped
+        ports:
+            - 8000:80
+            - 443:443
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx/:/etc/nginx/conf.d/
+        networks:
+            - laravelnet
+
+    ### PostgreSQL Server Container ##################################
+    db_postgres:
+        build:
+            context: ./docker/postgres
+        volumes:
+            - db-postgres:/var/lib/postgresql/data
+        ports:
+            - "5433:5432"
+        environment:
+            - POSTGRES_DB=${POSTGRES_DB}
+            - POSTGRES_USER=${POSTGRES_USER}
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        networks:
+            - laravelnet
+
+    # Telescope
+    db_mysql:
+        image: mysql:5.7.22
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: ${TELESCOPE_DB}
+            MYSQL_ROOT_PASSWORD: ${TELESCOPE_PASSWORD}
+            MYSQL_PASSWORD: ${TELESCOPE_PASSWORD}
+            MYSQL_USER: ${TELESCOPE_USER}
+        volumes:
+            - ./.docker/mysql/dbdata:/var/lib/mysql
+        ports:
+            - 3308:3306
+        networks:
+            - laravelnet
+
+networks:
+    laravelnet:
+        driver: bridge
+
+volumes:
+    db-postgres:
+        driver: local
